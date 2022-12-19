@@ -47,15 +47,15 @@ class DCSystemService:
         self.service = VeDbusService('com.victronenergy.dcsystem.aggregator', conn)
         self.service.add_mandatory_paths(__file__, VERSION, 'dbus', DEVICE_INSTANCE_ID,
                                      PRODUCT_ID, PRODUCT_NAME, FIRMWARE_VERSION, HARDWARE_VERSION, CONNECTED)
-        self.service.add_path("/Dc/0/Voltage", 0)
-        self.service.add_path("/Dc/0/Current", 0)
-        self.service.add_path("/History/EnergyIn", 0)
-        self.service.add_path("/History/EnergyOut", 0)
+        self.service.add_path("/Dc/0/Voltage", 0, gettextcallback=lambda path,value: "{:.2f}V".format(value))
+        self.service.add_path("/Dc/0/Current", 0, gettextcallback=lambda path,value: "{:.3f}A".format(value))
+        self.service.add_path("/History/EnergyIn", 0, gettextcallback=lambda path,value: "{:.6f}kWh".format(value))
+        self.service.add_path("/History/EnergyOut", 0, gettextcallback=lambda path,value: "{:.6f}kWh".format(value))
         self.service.add_path("/Alarms/LowVoltage", ALARM_OK)
         self.service.add_path("/Alarms/HighVoltage", ALARM_OK)
         self.service.add_path("/Alarms/LowTemperature", ALARM_OK)
         self.service.add_path("/Alarms/HighTemperature", ALARM_OK)
-        self.service.add_path("/Dc/0/Power", 0)
+        self.service.add_path("/Dc/0/Power", 0, gettextcallback=lambda path,value: "{:.2f}W".format(value))
         options = None  # currently not used afaik
         self.monitor = DbusMonitor({
             'com.victronenergy.dcload': {
