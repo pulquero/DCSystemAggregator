@@ -11,6 +11,7 @@ from gi.repository import GLib
 import logging
 from vedbus import VeDbusService
 from dbusmonitor import DbusMonitor
+from collections import namedtuple
 
 DEVICE_INSTANCE_ID = 1024
 PRODUCT_ID = 0
@@ -36,6 +37,9 @@ class SessionBus(dbus.bus.BusConnection):
 
 def dbusConnection():
     return SessionBus() if 'DBUS_SESSION_BUS_ADDRESS' in os.environ else SystemBus()
+
+
+DCService = namedtuple('DCService', ['name', 'type'])
 
 
 class DCSystemService:
@@ -79,13 +83,6 @@ class DCSystemService:
     def _get_value(self, serviceName, path, defaultValue=None):
         return self.monitor.get_value(serviceName, path, defaultValue)
 
-    def _get_power(self, serviceName):
-        power = self._get_value(serviceName, "/Dc/0/Power")
-        if power is None:
-            voltage = self._get_value(serviceName, "/Dc/0/Voltage", 0)
-            power = voltage * current
-        return power
-
     def update(self):
         totalCurrent = 0
         totalPower = 0
@@ -95,34 +92,38 @@ class DCSystemService:
         maxHighVoltageAlarm = ALARM_OK
         maxLowTempAlarm = ALARM_OK
         maxHighTempAlarm = ALARM_OK
-        for serviceName in self.monitor.get_service_list('com.victronenergy.dcload'):
+
+        dcServices = []
+        for serviceType in ['dcload', 'dcsource']:
+            for serviceName in self.monitor.get_service_list('com.victronenergy.' + serviceType):
+                dcServices.append(DCService(serviceName, serviceType))
+
+        for dcService in dcServices:
+            serviceName = dcService.name
             current = self._get_value(serviceName, "/Dc/0/Current", 0)
+            voltage = self._get_value(serviceName, "/Dc/0/Voltage", 0)
+            if dcService.type == 'dcload':
+                totalEnergyIn += self._get_value(serviceName, "/History/EnergyIn", 0)
+            else:
+                current -= current
+                totalEnergyOut += self._get_value(serviceName, "/History/EnergyOut", 0)
             totalCurrent += current
-            totalEnergyIn += self._get_value(serviceName, "/History/EnergyIn", 0)
-            totalPower += self._get_power(serviceName)
+            totalPower += voltage * current
+
             maxLowVoltageAlarm = max(self._get_value(serviceName, "/Alarms/LowVoltage", ALARM_OK), maxLowVoltageAlarm)
             maxHighVoltageAlarm = max(self._get_value(serviceName, "/Alarms/HighVoltage", ALARM_OK), maxHighVoltageAlarm)
             maxLowTempAlarm = max(self._get_value(serviceName, "/Alarms/LowTemperature", ALARM_OK), maxLowTempAlarm)
             maxHighTempAlarm = max(self._get_value(serviceName, "/Alarms/HighTemperature", ALARM_OK), maxHighTempAlarm)
 
-        for serviceName in self.monitor.get_service_list('com.victronenergy.dcsource'):
-            current = self._get_value(serviceName, "/Dc/0/Current", 0)
-            totalCurrent -= current
-            totalEnergyOut += self._get_value(serviceName, "/History/EnergyOut", 0)
-            totalPower += self._get_power(serviceName)
-            maxLowVoltageAlarm = max(self._get_value(serviceName, "/Alarms/LowVoltage", ALARM_OK), maxLowVoltageAlarm)
-            maxHighVoltageAlarm = max(self._get_value(serviceName, "/Alarms/HighVoltage", ALARM_OK), maxHighVoltageAlarm)
-            maxLowTempAlarm = max(self._get_value(serviceName, "/Alarms/LowTemperature", ALARM_OK), maxLowTempAlarm)
-            maxHighTempAlarm = max(self._get_value(serviceName, "/Alarms/HighTemperature", ALARM_OK), maxHighTempAlarm)
-        self.service["/Dc/0/Voltage"] = round(totalPower/totalCurrent, 2) if totalCurrent else 0
-        self.service["/Dc/0/Current"] = round(totalCurrent, 1)
-        self.service["/History/EnergyIn"] = round(totalEnergyIn, 3)
-        self.service["/History/EnergyOut"] = round(totalEnergyOut, 3)
+        self.service["/Dc/0/Voltage"] = round(totalPower/totalCurrent, 3) if totalCurrent else 0
+        self.service["/Dc/0/Current"] = round(totalCurrent, 3)
+        self.service["/History/EnergyIn"] = round(totalEnergyIn, 6)
+        self.service["/History/EnergyOut"] = round(totalEnergyOut, 6)
         self.service["/Alarms/LowVoltage"] = maxLowVoltageAlarm
         self.service["/Alarms/HighVoltage"] = maxHighVoltageAlarm
         self.service["/Alarms/LowTemperature"] = maxLowTempAlarm
         self.service["/Alarms/HighTemperature"] = maxHighTempAlarm
-        self.service["/Dc/0/Power"] = round(totalPower, 1)
+        self.service["/Dc/0/Power"] = round(totalPower, 3)
         return True
 
     def __str__(self):
