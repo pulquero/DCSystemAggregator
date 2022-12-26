@@ -105,7 +105,7 @@ class DCSystemService:
             if dcService.type == 'dcload':
                 totalEnergyIn += self._get_value(serviceName, "/History/EnergyIn", 0)
             else:
-                current -= current
+                current = -current
                 totalEnergyOut += self._get_value(serviceName, "/History/EnergyOut", 0)
             totalCurrent += current
             totalPower += voltage * current
@@ -127,7 +127,7 @@ class DCSystemService:
         return True
 
     def __str__(self):
-        return "DC System Aggregator"
+        return PRODUCT_NAME
 
 
 def main():
