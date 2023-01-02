@@ -42,20 +42,26 @@ def dbusConnection():
 DCService = namedtuple('DCService', ['name', 'type'])
 
 
+VOLTAGE_TEXT = lambda path,value: "{:.2f}V".format(value)
+CURRENT_TEXT = lambda path,value: "{:.3f}A".format(value)
+POWER_TEXT = lambda path,value: "{:.2f}W".format(value)
+ENERGY_TEXT = lambda path,value: "{:.6f}kWh".format(value)
+
+
 class DCSystemService:
     def __init__(self, conn):
         self.service = VeDbusService('com.victronenergy.dcsystem.aggregator', conn)
         self.service.add_mandatory_paths(__file__, VERSION, 'dbus', DEVICE_INSTANCE_ID,
                                      PRODUCT_ID, PRODUCT_NAME, FIRMWARE_VERSION, HARDWARE_VERSION, CONNECTED)
-        self.service.add_path("/Dc/0/Voltage", 0, gettextcallback=lambda path,value: "{:.2f}V".format(value))
-        self.service.add_path("/Dc/0/Current", 0, gettextcallback=lambda path,value: "{:.3f}A".format(value))
-        self.service.add_path("/History/EnergyIn", 0, gettextcallback=lambda path,value: "{:.6f}kWh".format(value))
-        self.service.add_path("/History/EnergyOut", 0, gettextcallback=lambda path,value: "{:.6f}kWh".format(value))
+        self.service.add_path("/Dc/0/Voltage", 0, gettextcallback=VOLTAGE_TEXT)
+        self.service.add_path("/Dc/0/Current", 0, gettextcallback=CURRENT_TEXT)
+        self.service.add_path("/History/EnergyIn", 0, gettextcallback=ENERGY_TEXT)
+        self.service.add_path("/History/EnergyOut", 0, gettextcallback=ENERGY_TEXT)
         self.service.add_path("/Alarms/LowVoltage", ALARM_OK)
         self.service.add_path("/Alarms/HighVoltage", ALARM_OK)
         self.service.add_path("/Alarms/LowTemperature", ALARM_OK)
         self.service.add_path("/Alarms/HighTemperature", ALARM_OK)
-        self.service.add_path("/Dc/0/Power", 0, gettextcallback=lambda path,value: "{:.2f}W".format(value))
+        self.service.add_path("/Dc/0/Power", 0, gettextcallback=POWER_TEXT)
         options = None  # currently not used afaik
         self.monitor = DbusMonitor({
             'com.victronenergy.dcload': {
@@ -116,9 +122,9 @@ class DCSystemService:
             maxHighTempAlarm = max(self._get_value(serviceName, "/Alarms/HighTemperature", ALARM_OK), maxHighTempAlarm)
 
         self.service["/Dc/0/Voltage"] = round(totalPower/totalCurrent, 3) if totalCurrent else 0
-        self.service["/Dc/0/Current"] = round(totalCurrent, 3)
-        self.service["/History/EnergyIn"] = round(totalEnergyIn, 6)
-        self.service["/History/EnergyOut"] = round(totalEnergyOut, 6)
+        self.service["/Dc/0/Current"] = totalCurrent
+        self.service["/History/EnergyIn"] = totalEnergyIn
+        self.service["/History/EnergyOut"] = totalEnergyOut
         self.service["/Alarms/LowVoltage"] = maxLowVoltageAlarm
         self.service["/Alarms/HighVoltage"] = maxHighVoltageAlarm
         self.service["/Alarms/LowTemperature"] = maxLowTempAlarm
