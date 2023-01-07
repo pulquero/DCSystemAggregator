@@ -19,7 +19,12 @@ PRODUCT_NAME = "DC System Aggregator"
 FIRMWARE_VERSION = 0
 HARDWARE_VERSION = 0
 CONNECTED = 1
+
 ALARM_OK = 0
+ALARM_WARNING = 1
+ALARM_ALARM = 2
+
+VOLTAGE_DEADBAND = 1.0
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("dcsystem")
@@ -91,6 +96,8 @@ class DCSystemService:
 
     def update(self):
         totalCurrent = 0
+        voltageSum = 0
+        voltageCount = 0
         totalPower = 0
         totalEnergyIn = 0
         totalEnergyOut = 0
@@ -108,20 +115,25 @@ class DCSystemService:
             serviceName = dcService.name
             current = self._get_value(serviceName, "/Dc/0/Current", 0)
             voltage = self._get_value(serviceName, "/Dc/0/Voltage", 0)
+            power = self._get_value(serviceName, "/Dc/0/Power", voltage * current)
             if dcService.type == 'dcload':
                 totalEnergyIn += self._get_value(serviceName, "/History/EnergyIn", 0)
             else:
                 current = -current
+                power = -power
                 totalEnergyOut += self._get_value(serviceName, "/History/EnergyOut", 0)
             totalCurrent += current
-            totalPower += voltage * current
+            if voltage > VOLTAGE_DEADBAND:
+                voltageSum += voltage
+                voltageCount += 1
+            totalPower += power
 
             maxLowVoltageAlarm = max(self._get_value(serviceName, "/Alarms/LowVoltage", ALARM_OK), maxLowVoltageAlarm)
             maxHighVoltageAlarm = max(self._get_value(serviceName, "/Alarms/HighVoltage", ALARM_OK), maxHighVoltageAlarm)
             maxLowTempAlarm = max(self._get_value(serviceName, "/Alarms/LowTemperature", ALARM_OK), maxLowTempAlarm)
             maxHighTempAlarm = max(self._get_value(serviceName, "/Alarms/HighTemperature", ALARM_OK), maxHighTempAlarm)
 
-        self.service["/Dc/0/Voltage"] = round(totalPower/totalCurrent, 3) if totalCurrent else 0
+        self.service["/Dc/0/Voltage"] = voltageSum/voltageCount if voltageCount > 0 else 0
         self.service["/Dc/0/Current"] = totalCurrent
         self.service["/History/EnergyIn"] = totalEnergyIn
         self.service["/History/EnergyOut"] = totalEnergyOut
@@ -129,7 +141,7 @@ class DCSystemService:
         self.service["/Alarms/HighVoltage"] = maxHighVoltageAlarm
         self.service["/Alarms/LowTemperature"] = maxLowTempAlarm
         self.service["/Alarms/HighTemperature"] = maxHighTempAlarm
-        self.service["/Dc/0/Power"] = round(totalPower, 3)
+        self.service["/Dc/0/Power"] = totalPower
         return True
 
     def __str__(self):
