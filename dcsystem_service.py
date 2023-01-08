@@ -67,6 +67,9 @@ class DCSystemService:
         self.service.add_path("/Alarms/LowTemperature", ALARM_OK)
         self.service.add_path("/Alarms/HighTemperature", ALARM_OK)
         self.service.add_path("/Dc/0/Power", 0, gettextcallback=POWER_TEXT)
+        self._local_values = {}
+        for path in self.service._dbusobjects:
+            self._local_values[path] = self.service[path]
         options = None  # currently not used afaik
         self.monitor = DbusMonitor({
             'com.victronenergy.dcload': {
@@ -133,15 +136,20 @@ class DCSystemService:
             maxLowTempAlarm = max(self._get_value(serviceName, "/Alarms/LowTemperature", ALARM_OK), maxLowTempAlarm)
             maxHighTempAlarm = max(self._get_value(serviceName, "/Alarms/HighTemperature", ALARM_OK), maxHighTempAlarm)
 
-        self.service["/Dc/0/Voltage"] = voltageSum/voltageCount if voltageCount > 0 else 0
-        self.service["/Dc/0/Current"] = totalCurrent
-        self.service["/History/EnergyIn"] = totalEnergyIn
-        self.service["/History/EnergyOut"] = totalEnergyOut
-        self.service["/Alarms/LowVoltage"] = maxLowVoltageAlarm
-        self.service["/Alarms/HighVoltage"] = maxHighVoltageAlarm
-        self.service["/Alarms/LowTemperature"] = maxLowTempAlarm
-        self.service["/Alarms/HighTemperature"] = maxHighTempAlarm
-        self.service["/Dc/0/Power"] = totalPower
+        self._local_values["/Dc/0/Voltage"] = voltageSum/voltageCount if voltageCount > 0 else 0
+        self._local_values["/Dc/0/Current"] = totalCurrent
+        self._local_values["/History/EnergyIn"] = totalEnergyIn
+        self._local_values["/History/EnergyOut"] = totalEnergyOut
+        self._local_values["/Alarms/LowVoltage"] = maxLowVoltageAlarm
+        self._local_values["/Alarms/HighVoltage"] = maxHighVoltageAlarm
+        self._local_values["/Alarms/LowTemperature"] = maxLowTempAlarm
+        self._local_values["/Alarms/HighTemperature"] = maxHighTempAlarm
+        self._local_values["/Dc/0/Power"] = totalPower
+        return True
+
+    def publish(self):
+        for k,v in self._local_values.items():
+            self.service[k] = v
         return True
 
     def __str__(self):
@@ -151,7 +159,8 @@ class DCSystemService:
 def main():
     DBusGMainLoop(set_as_default=True)
     dcSystem = DCSystemService(dbusConnection())
-    GLib.timeout_add(1000, dcSystem.update)
+    GLib.timeout_add(200, dcSystem.update)
+    GLib.timeout_add_seconds(1, dcSystem.publish)
     logger.info("Registered DC System Aggregator")
     mainloop = GLib.MainLoop()
     mainloop.run()
