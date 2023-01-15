@@ -7,8 +7,8 @@ If you have DC load/source DBus services but no DC system, then you need this fo
 
 # Install
 
-Install [SetupHelper](https://github.com/kwindrem/SetupHelper), use [this version](https://github.com/pulquero/SetupHelper) if you want this package
-to be available by default, else manually add it.
+Install [SetupHelper](https://github.com/kwindrem/SetupHelper),
+you can find this package listed in the available packages to install.
 
 Turn on `Has DC system` under `System setup`.
 
