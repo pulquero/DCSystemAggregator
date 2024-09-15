@@ -55,7 +55,7 @@ ENERGY_TEXT = lambda path,value: "{:.6f}kWh".format(value)
 
 class DCSystemService:
     def __init__(self, conn):
-        self.service = VeDbusService('com.victronenergy.dcsystem.aggregator', conn)
+        self.service = VeDbusService('com.victronenergy.dcsystem.aggregator', conn, register=False)
         self.service.add_mandatory_paths(__file__, VERSION, 'dbus', DEVICE_INSTANCE_ID,
                                      PRODUCT_ID, PRODUCT_NAME, FIRMWARE_VERSION, HARDWARE_VERSION, CONNECTED)
         self.service.add_path("/Dc/0/Voltage", 0, gettextcallback=VOLTAGE_TEXT)
@@ -67,6 +67,7 @@ class DCSystemService:
         self.service.add_path("/Alarms/LowTemperature", ALARM_OK)
         self.service.add_path("/Alarms/HighTemperature", ALARM_OK)
         self.service.add_path("/Dc/0/Power", 0, gettextcallback=POWER_TEXT)
+        self.service.register()
         self._local_values = {}
         for path in self.service._dbusobjects:
             self._local_values[path] = self.service[path]
