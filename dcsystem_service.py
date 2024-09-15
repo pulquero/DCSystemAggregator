@@ -55,9 +55,10 @@ ENERGY_TEXT = lambda path,value: "{:.6f}kWh".format(value)
 
 class DCSystemService:
     def __init__(self, conn):
-        self.service = VeDbusService('com.victronenergy.dcsystem.aggregator', conn)
+        self.service = VeDbusService('com.victronenergy.dcsystem.aggregator', conn, register=False)
         self.service.add_mandatory_paths(__file__, VERSION, 'dbus', DEVICE_INSTANCE_ID,
                                      PRODUCT_ID, PRODUCT_NAME, FIRMWARE_VERSION, HARDWARE_VERSION, CONNECTED)
+        self.service.register()
         self.service.add_path("/Dc/0/Voltage", 0, gettextcallback=VOLTAGE_TEXT)
         self.service.add_path("/Dc/0/Current", 0, gettextcallback=CURRENT_TEXT)
         self.service.add_path("/History/EnergyIn", 0, gettextcallback=ENERGY_TEXT)
