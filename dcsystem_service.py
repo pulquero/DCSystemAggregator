@@ -10,6 +10,7 @@ from dbus.mainloop.glib import DBusGMainLoop
 from gi.repository import GLib
 import logging
 from vedbus import VeDbusService
+from settableservice import SettableService
 from dbusmonitor import DbusMonitor
 from collections import namedtuple
 
@@ -53,10 +54,14 @@ POWER_TEXT = lambda path,value: "{:.2f}W".format(value)
 ENERGY_TEXT = lambda path,value: "{:.6f}kWh".format(value)
 
 
-class DCSystemService:
+class DCSystemService(SettableService):
     def __init__(self, conn):
+        super().__init__()
         self.service = VeDbusService('com.victronenergy.dcsystem.aggregator', conn, register=False)
-        self.service.add_mandatory_paths(__file__, VERSION, 'dbus', DEVICE_INSTANCE_ID,
+        self.add_settable_path("/CustomName", "")
+        self._init_settings(conn)
+        di = self.register_device_instance("dcsystem", "DCSystemAggregator", DEVICE_INSTANCE_ID)
+        self.service.add_mandatory_paths(__file__, VERSION, 'dbus', di,
                                      PRODUCT_ID, PRODUCT_NAME, FIRMWARE_VERSION, HARDWARE_VERSION, CONNECTED)
         self.service.add_path("/Dc/0/Voltage", 0, gettextcallback=VOLTAGE_TEXT)
         self.service.add_path("/Dc/0/Current", 0, gettextcallback=CURRENT_TEXT)
